@@ -1,4 +1,4 @@
-name: Test ECR Login
+name: Test Environment State Update
 
 on:
   workflow_dispatch:
