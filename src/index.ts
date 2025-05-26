@@ -32,7 +32,7 @@ async function run() {
     const environment = core.getInput('environment', { required: true });
 
     let baseUrl = core.getInput('base_url', { required: false });
-    let action = core.getInput('action', { required: false });
+    let action = core.getInput('action', { required: false }) ?? 'redeploy';
 
     if (!baseUrl) {
         baseUrl = 'https://dashboard.quantcdn.io/api/v3';
@@ -40,18 +40,25 @@ async function run() {
         core.warning(`Using non-default base URL: ${baseUrl}`);
     }
 
+    core.info('Quant CloudEnvironment State Update');
+    core.info('Configuration:');
+    core.info(`  • Organization: ${organization}`);
+    core.info(`  • Application: ${application}`);
+    core.info(`  • Environment: ${environment}`);
+    core.info(`  • Action: ${action ?? 'redeploy'}`);
+
     const client = new EnvironmentsApi(baseUrl);
     client.setDefaultAuthentication(apiOpts(apiKey));
 
     const environmentStateRequest = new UpdateEnvironmentStateRequest();
-    environmentStateRequest.action = action ?? 'redeploy';
+    environmentStateRequest.action = action;
 
     try {
         const result = await client.updateEnvironmentState(organization, application, environment, environmentStateRequest);
-        core.info('✅ Environment state updated successfully');
+        core.info('\n✅ Environment state updated successfully');
     } catch (error) {
         const err = error as Error & ApiError;
-        core.error('❌ Failed to update environment state');
+        core.error('\n❌ Failed to update environment state');
         core.setFailed(err.body?.message ?? 'Unknown error');
     }
 }
