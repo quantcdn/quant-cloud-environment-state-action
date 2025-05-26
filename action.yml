@@ -1,0 +1,28 @@
+name: 'Quant Cloud Environment State'
+description: 'Update the state of an environment in Quant Cloud'
+branding:
+  icon: 'cloud'
+  color: 'blue'
+inputs:
+  api_key:
+    description: 'Quant Cloud API key'
+    required: true
+  organization:
+    description: 'Quant Cloud organisation name'
+    required: true
+  application:
+    description: 'Quant Cloud application name'
+    required: true
+  environment:
+    description: 'Quant Cloud environment name'
+    required: true
+  base_url:
+    description: 'Quant Cloud API base URL'
+    required: false
+  action:
+    description: 'Action to perform'
+    required: false
+    default: 'redeploy'
+runs:
+  using: 'node20'
+  main: 'dist/index.js' 
