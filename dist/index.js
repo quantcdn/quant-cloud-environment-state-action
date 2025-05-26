@@ -63472,8 +63472,8 @@ async function run() {
     else {
         core.warning(`Using non-default base URL: ${baseUrl}`);
     }
-    core.info('Quant CloudEnvironment State Update');
-    core.info('Configuration:');
+    core.info('Quant Cloud Environment State Update');
+    core.info('----------------------------------');
     core.info(`  • Organization: ${organization}`);
     core.info(`  • Application: ${application}`);
     core.info(`  • Environment: ${environment}`);
