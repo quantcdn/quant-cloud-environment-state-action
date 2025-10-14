@@ -3,7 +3,7 @@ import {
     ApplicationsApi,
     EnvironmentsApi,
     UpdateEnvironmentStateRequest
-} from 'quant-ts-client';
+} from '@quantcdn/quant-client';
 
 interface ApiError {
     body?: {
@@ -18,6 +18,40 @@ const apiOpts = (apiKey: string) => {
                 requestOptions.headers["Authorization"] = `Bearer ${apiKey}`;
             }
         }
+    }
+}
+
+/**
+ * Retry a function with exponential backoff and jitter
+ * @param fn - The function to retry
+ * @param maxRetries - Maximum number of retries (default: 5)
+ * @param attempt - Current attempt number (used internally for recursion)
+ * @returns Promise with the result of the function
+ */
+async function retryWithBackoff<T>(
+    fn: () => Promise<T>,
+    maxRetries: number = 5,
+    attempt: number = 0
+): Promise<T> {
+    try {
+        return await fn();
+    } catch (error) {
+        if (attempt >= maxRetries) {
+            throw error;
+        }
+
+        // Calculate backoff: exponential with jitter
+        // Base delay: 2^attempt seconds (1s, 2s, 4s, 8s, 16s)
+        // Jitter: random value between 0-1000ms to prevent thundering herd
+        const baseDelay = Math.pow(2, attempt) * 1000;
+        const jitter = Math.random() * 1000;
+        const delay = baseDelay + jitter;
+
+        core.info(`⏳ Attempt ${attempt + 1}/${maxRetries + 1} failed, retrying in ${(delay / 1000).toFixed(1)}s...`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        return retryWithBackoff(fn, maxRetries, attempt + 1);
     }
 }
 
@@ -54,11 +88,13 @@ async function run() {
     environmentStateRequest.action = action;
 
     try {
-        const result = await client.updateEnvironmentState(organization, application, environment, environmentStateRequest);
+        const result = await retryWithBackoff(
+            () => client.updateEnvironmentState(organization, application, environment, environmentStateRequest)
+        );
         core.info('\n✅ Environment state updated successfully');
     } catch (error) {
         const err = error as Error & ApiError;
-        core.error('\n❌ Failed to update environment state');
+        core.error('\n❌ Failed to update environment state after retries');
         core.setFailed(err.body?.message ?? 'Unknown error');
     }
 }
