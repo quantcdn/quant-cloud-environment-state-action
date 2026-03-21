@@ -11323,6 +11323,11 @@ function compile(schema, root, localRefs, baseId) {
     , defaultsHash = {}
     , customRules = [];
 
+  function patternCode(i, patterns) {
+    var regExpCode = opts.regExp ? 'regExp' : 'new RegExp';
+    return 'var pattern' + i + ' = ' + regExpCode + '(' + util.toQuotedString(patterns[i]) + ');';
+  }
+
   root = root || { schema: schema, refVal: refVal, refs: refs };
 
   var c = checkCompiling.call(this, schema, root, baseId);
@@ -11409,6 +11414,7 @@ function compile(schema, root, localRefs, baseId) {
         'equal',
         'ucs2length',
         'ValidationError',
+        'regExp',
         sourceCode
       );
 
@@ -11422,7 +11428,8 @@ function compile(schema, root, localRefs, baseId) {
         customRules,
         equal,
         ucs2length,
-        ValidationError
+        ValidationError,
+        opts.regExp
       );
 
       refVal[0] = validate;
@@ -11636,11 +11643,6 @@ function compIndex(schema, root, baseId) {
     if (c.schema == schema && c.root == root && c.baseId == baseId) return i;
   }
   return -1;
-}
-
-
-function patternCode(i, patterns) {
-  return 'var pattern' + i + ' = new RegExp(' + util.toQuotedString(patterns[i]) + ');';
 }
 
 
@@ -14381,6 +14383,7 @@ module.exports = function generate_pattern(it, $keyword, $ruleType) {
   var $errSchemaPath = it.errSchemaPath + '/' + $keyword;
   var $breakOnError = !it.opts.allErrors;
   var $data = 'data' + ($dataLvl || '');
+  var $valid = 'valid' + $lvl;
   var $isData = it.opts.$data && $schema && $schema.$data,
     $schemaValue;
   if ($isData) {
@@ -14389,12 +14392,21 @@ module.exports = function generate_pattern(it, $keyword, $ruleType) {
   } else {
     $schemaValue = $schema;
   }
-  var $regexp = $isData ? '(new RegExp(' + $schemaValue + '))' : it.usePattern($schema);
-  out += 'if ( ';
+  var $regExpCode = it.opts.regExp ? 'regExp' : 'new RegExp';
   if ($isData) {
-    out += ' (' + ($schemaValue) + ' !== undefined && typeof ' + ($schemaValue) + ' != \'string\') || ';
+    out += ' var ' + ($valid) + ' = true; try { ' + ($valid) + ' = ' + ($regExpCode) + '(' + ($schemaValue) + ').test(' + ($data) + '); } catch(e) { ' + ($valid) + ' = false; } if ( ';
+    if ($isData) {
+      out += ' (' + ($schemaValue) + ' !== undefined && typeof ' + ($schemaValue) + ' != \'string\') || ';
+    }
+    out += ' !' + ($valid) + ') {';
+  } else {
+    var $regexp = it.usePattern($schema);
+    out += ' if ( ';
+    if ($isData) {
+      out += ' (' + ($schemaValue) + ' !== undefined && typeof ' + ($schemaValue) + ' != \'string\') || ';
+    }
+    out += ' !' + ($regexp) + '.test(' + ($data) + ') ) {';
   }
-  out += ' !' + ($regexp) + '.test(' + ($data) + ') ) {   ';
   var $$outStack = $$outStack || [];
   $$outStack.push(out);
   out = ''; /* istanbul ignore else */
@@ -24808,7 +24820,7 @@ var defaults = {
 var parseValues = function parseQueryStringValues(str, options) {
     var obj = {};
     var cleanStr = options.ignoreQueryPrefix ? str.replace(/^\?/, '') : str;
-    var limit = options.parameterLimit === Infinity ? undefined : options.parameterLimit;
+    var limit = options.parameterLimit === Infinity ? void undefined : options.parameterLimit;
     var parts = cleanStr.split(options.delimiter, limit);
 
     for (var i = 0; i < parts.length; ++i) {
@@ -24900,7 +24912,7 @@ var parseKeys = function parseQueryStringKeys(givenKey, val, options) {
             }
         }
 
-        keys.push(parent);
+        keys[keys.length] = parent;
     }
 
     // Loop through children appending to the array until we hit depth
@@ -24913,13 +24925,13 @@ var parseKeys = function parseQueryStringKeys(givenKey, val, options) {
                 return;
             }
         }
-        keys.push(segment[1]);
+        keys[keys.length] = segment[1];
     }
 
     // If there's a remainder, just add whatever is left
 
     if (segment) {
-        keys.push('[' + key.slice(segment.index) + ']');
+        keys[keys.length] = '[' + key.slice(segment.index) + ']';
     }
 
     return parseObject(keys, val, options);
@@ -25202,7 +25214,7 @@ var has = Object.prototype.hasOwnProperty;
 var hexTable = (function () {
     var array = [];
     for (var i = 0; i < 256; ++i) {
-        array.push('%' + ((i < 16 ? '0' : '') + i.toString(16)).toUpperCase());
+        array[array.length] = '%' + ((i < 16 ? '0' : '') + i.toString(16)).toUpperCase();
     }
 
     return array;
@@ -25220,7 +25232,7 @@ var compactQueue = function compactQueue(queue) {
 
             for (var j = 0; j < obj.length; ++j) {
                 if (typeof obj[j] !== 'undefined') {
-                    compacted.push(obj[j]);
+                    compacted[compacted.length] = obj[j];
                 }
             }
 
@@ -25249,7 +25261,7 @@ var merge = function merge(target, source, options) {
 
     if (typeof source !== 'object') {
         if (Array.isArray(target)) {
-            target.push(source);
+            target[target.length] = source;
         } else if (target && typeof target === 'object') {
             if ((options && (options.plainObjects || options.allowPrototypes)) || !has.call(Object.prototype, source)) {
                 target[source] = true;
@@ -25277,7 +25289,7 @@ var merge = function merge(target, source, options) {
                 if (targetItem && typeof targetItem === 'object' && item && typeof item === 'object') {
                     target[i] = merge(targetItem, item, options);
                 } else {
-                    target.push(item);
+                    target[target.length] = item;
                 }
             } else {
                 target[i] = item;
@@ -25379,8 +25391,8 @@ var compact = function compact(value) {
             var key = keys[j];
             var val = obj[key];
             if (typeof val === 'object' && val !== null && refs.indexOf(val) === -1) {
-                queue.push({ obj: obj, prop: key });
-                refs.push(val);
+                queue[queue.length] = { obj: obj, prop: key };
+                refs[refs.length] = val;
             }
         }
     }
