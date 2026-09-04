@@ -5,6 +5,8 @@ import {
     Configuration
 } from '@quantcdn/quant-client';
 
+const DEFAULT_BASE_URL = 'https://dashboard.quantcdn.io';
+
 interface ApiError {
     response?: {
         status?: number;
@@ -51,10 +53,11 @@ async function run() {
     let baseUrl = core.getInput('base_url', { required: false });
     let action = core.getInput('action', { required: false }) || 'redeploy';
 
-    if (!baseUrl) {
-        baseUrl = 'https://dashboard.quantcdn.io';
-    } else {
-        baseUrl = baseUrl.replace(/\/api\/v3\/?$/, '');
+    baseUrl = baseUrl
+        ? baseUrl.replace(/\/api\/v3\/?$/, '').replace(/\/+$/, '')
+        : DEFAULT_BASE_URL;
+
+    if (baseUrl !== DEFAULT_BASE_URL) {
         core.warning(`Using non-default base URL: ${baseUrl}`);
     }
 

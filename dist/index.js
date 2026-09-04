@@ -48218,6 +48218,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484));
 const quant_client_1 = __nccwpck_require__(6491);
+const DEFAULT_BASE_URL = 'https://dashboard.quantcdn.io';
 /**
  * Retry a function with exponential backoff and jitter
  */
@@ -48243,12 +48244,11 @@ async function run() {
     const application = core.getInput('application', { required: true });
     const environment = core.getInput('environment', { required: true });
     let baseUrl = core.getInput('base_url', { required: false });
-    let action = core.getInput('action', { required: false }) ?? 'redeploy';
-    if (!baseUrl) {
-        baseUrl = 'https://dashboard.quantcdn.io';
-    }
-    else {
-        baseUrl = baseUrl.replace(/\/api\/v3\/?$/, '');
+    let action = core.getInput('action', { required: false }) || 'redeploy';
+    baseUrl = baseUrl
+        ? baseUrl.replace(/\/api\/v3\/?$/, '').replace(/\/+$/, '')
+        : DEFAULT_BASE_URL;
+    if (baseUrl !== DEFAULT_BASE_URL) {
         core.warning(`Using non-default base URL: ${baseUrl}`);
     }
     core.info('Quant Cloud Environment State Update');
@@ -48256,7 +48256,7 @@ async function run() {
     core.info(`  * Organization: ${organization}`);
     core.info(`  * Application: ${application}`);
     core.info(`  * Environment: ${environment}`);
-    core.info(`  * Action: ${action ?? 'redeploy'}`);
+    core.info(`  * Action: ${action}`);
     const config = new quant_client_1.Configuration({
         basePath: baseUrl,
         accessToken: apiKey
