@@ -25,4 +25,5 @@ inputs:
     default: 'redeploy'
 runs:
   using: 'node24'
+  pre: 'runtime-check.cjs'
   main: 'dist/index.js' 
