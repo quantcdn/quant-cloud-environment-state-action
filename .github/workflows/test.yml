@@ -1,42 +1,14 @@
-name: Test Environment State Update
-
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - 'src/**'
-      - '.github/workflows/test.yml'
-      - 'package.json'
-      - 'package-lock.json'
-
+name: Test bundled API integration
+on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      ACTIONS_STEP_DEBUG: true
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
-          node-version: '20'
-
-      - name: Debug Action Files
-        run: |
-          ls -la
-          ls -la dist/
-          cat action.yml
-
-      - name: Update Environment State
-        uses: ./
-        id: update-environment-state
-        with:
-          api_key: ${{ secrets.QUANT_API_KEY }}
-          organization: 'quant'
-          application: 'clap'
-          environment: 'production'
-          base_url: 'https://portal.stage.quantcdn.io/api/v3'
-          action: 'redeploy'
+          node-version: '24'
+      - name: Exercise committed bundle against isolated API fixture
+        run: node --test security-tests/api-contract.test.cjs
